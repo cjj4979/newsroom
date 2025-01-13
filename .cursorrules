@@ -1,0 +1,86 @@
+// Flutter MVVM Project .cursorrules
+
+// Project Overview
+// This Flutter application follows the MVVM architecture to display news articles in a scrollable widget. The app scrapes content from a specified website and presents it with headlines, summaries, and images. Tapping an article redirects the user to the original webpage.
+
+// Coding Standards
+- Use **English** for all code and documentation.
+- Always declare the **type** of each variable and function (parameters and return values); avoid using `any`.
+- Use **PascalCase** for class names.
+- Use **camelCase** for variables, functions, and methods.
+- Use **snake_case** for file and directory names.
+- Use **UPPERCASE** for environment variables.
+- Avoid magic numbers; define constants appropriately.
+- Begin function names with a **verb** to indicate action.
+- Use descriptive names for boolean variables, e.g., `isLoading`, `hasError`, `canDelete`.
+- Prefer complete words over abbreviations, except for standard terms like `API`, `URL`, or common loop variables like `i`, `j`.
+
+// Project Structure
+- **lib/**                  // Root directory for all source code
+  - **models/**            // Data models representing the application's data structures
+  - **viewmodels/**        // ViewModel classes responsible for business logic and state management
+  - **views/**             // UI components and screens
+  - **services/**          // Classes for data fetching, such as web scraping or API calls
+  - **utils/**             // Utility functions and helpers
+  - **widgets/**           // Reusable UI components
+  - **constants/**         // Application-wide constants and configurations
+  - **theme/**             // Theme data and styling configurations
+
+// MVVM Best Practices
+- Ensure **Views** are free of business logic; they should only handle UI rendering and user input.
+- **ViewModels** should manage the state and business logic, exposing data to Views through **ChangeNotifier** or similar mechanisms.
+- **Models** should represent the data structures and be independent of UI components.
+- Implement **dependency injection** to manage dependencies between classes, facilitating easier testing and maintenance.
+- Use **Provider** or other state management solutions to manage the interaction between Views and ViewModels.
+- Ensure that **ViewModels** do not directly reference Views to maintain a clear separation of concerns.
+
+// State Management
+- Utilize **ChangeNotifier** in ViewModels to notify Views of state changes.
+- Avoid direct mutation of state within Views; instead, invoke methods on the ViewModel.
+- Keep the widget tree shallow to simplify state management and improve readability.
+- Break down large widgets into smaller, focused widgets to promote reusability and clarity.
+- Use **const** constructors wherever possible to reduce unnecessary rebuilds and enhance performance.
+
+// Networking and Data Handling
+- Use the **`http`** package for making HTTP requests.
+- Parse and handle data using appropriate Dart libraries, ensuring error handling and data validation.
+- Implement caching strategies to improve performance and reduce redundant network calls.
+- Handle network errors gracefully with proper error messages to users.
+- Implement retry mechanisms for failed network requests where appropriate.
+
+// Testing
+- Write **unit tests** for ViewModels to verify business logic.
+- Write **widget tests** for Views to ensure UI components render correctly.
+- Use **mocking** frameworks to simulate data fetching and other services during testing.
+
+// Documentation
+- Document all classes and public methods using Dart's documentation comments.
+- Maintain an up-to-date **README.md** with project setup instructions and architectural overviews.
+- Include inline comments for complex logic to enhance code readability and maintainability.
+- Follow this documentation format for classes and methods:
+
+  ```dart
+  /// A brief description of the class/method.
+  ///
+  /// A more detailed description if needed.
+  /// 
+  /// Parameters:
+  /// - [param1]: Description of first parameter
+  /// - [param2]: Description of second parameter
+  ///
+  /// Returns: Description of return value
+  /// 
+  /// Throws: Description of potential exceptions
+  ```
+
+// Git Practices
+- Write clear, descriptive commit messages.
+- Create feature branches for new features.
+- Review code before merging to main branch.
+- Keep commits focused and atomic.
+- Follow conventional commit message format:
+  ```
+  feat: add news article caching
+  fix: resolve image loading issue
+  docs: update README with setup instructions
+  ```
