@@ -1,47 +1,63 @@
 import 'package:flutter/foundation.dart';
 import '../models/news_article.dart';
 import '../services/news_scraper_service.dart';
+import '../services/storage_service.dart';
 
-/// ViewModel responsible for managing news article data and state.
 class NewsViewModel extends ChangeNotifier {
   final NewsScraperService _scraperService;
+  final StorageService _storageService;
+  
   List<NewsArticle> _articles = [];
-  bool _isLoading = false;
   String? _error;
+  bool _isLoading = false;
 
-  /// Indicates whether data is currently being loaded
-  bool get isLoading => _isLoading;
-  
-  /// List of currently loaded news articles
-  List<NewsArticle> get articles => List.unmodifiable(_articles);
-  
-  /// Current error message, if any
+  // Duration after which cached data is considered stale
+  static const _staleDuration = Duration(minutes: 15);
+
+  NewsViewModel({
+    required NewsScraperService scraperService,
+    required StorageService storageService,
+  })  : _scraperService = scraperService,
+        _storageService = storageService {
+    _loadArticles();
+  }
+
+  List<NewsArticle> get articles => _articles;
   String? get error => _error;
+  bool get isLoading => _isLoading;
 
-  NewsViewModel({NewsScraperService? scraperService})
-      : _scraperService = scraperService ?? NewsScraperService();
+  Future<void> _loadArticles() async {
+    try {
+      final cachedArticles = await _storageService.getArticles();
+      if (cachedArticles.isNotEmpty) {
+        _articles = cachedArticles;
+        notifyListeners();
+      }
+      
+      if (await _storageService.isDataStale(_staleDuration)) {
+        await refreshArticles();
+      }
+    } catch (e) {
+      _error = 'Failed to load cached articles: $e';
+      notifyListeners();
+    }
+  }
 
-  /// Fetches the latest news articles from the service.
-  Future<void> fetchNews() async {
+  Future<void> refreshArticles() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _articles = await _scraperService.fetchLatestNews();
+      final articles = await _scraperService.fetchLatestNews();
+      _articles = articles;
+      await _storageService.saveArticles(articles);
       _error = null;
     } catch (e) {
-      _error = e.toString();
-      _articles = [];
+      _error = 'Failed to fetch articles: $e';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  @override
-  void dispose() {
-    _scraperService.dispose();
-    super.dispose();
   }
 } 

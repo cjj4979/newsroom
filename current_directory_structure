@@ -1,0 +1,59 @@
+.
+├── README.md
+├── analysis_options.yaml
+├── android
+│   ├── app
+│   │   ├── build.gradle
+│   │   └── src
+│   ├── build.gradle
+│   ├── gradle
+│   │   └── wrapper
+│   ├── gradle.properties
+│   ├── gradlew
+│   ├── gradlew.bat
+│   ├── local.properties
+│   └── settings.gradle
+├── docs
+│   └── PRD.md
+├── ios
+│   ├── Flutter
+│   │   ├── AppFrameworkInfo.plist
+│   │   ├── Debug.xcconfig
+│   │   ├── Generated.xcconfig
+│   │   ├── Release.xcconfig
+│   │   └── flutter_export_environment.sh
+│   ├── Runner
+│   │   ├── AppDelegate.swift
+│   │   ├── Assets.xcassets
+│   │   ├── Base.lproj
+│   │   ├── GeneratedPluginRegistrant.h
+│   │   ├── GeneratedPluginRegistrant.m
+│   │   ├── Info.plist
+│   │   └── Runner-Bridging-Header.h
+│   ├── Runner.xcodeproj
+│   │   ├── project.pbxproj
+│   │   ├── project.xcworkspace
+│   │   └── xcshareddata
+│   ├── Runner.xcworkspace
+│   │   ├── contents.xcworkspacedata
+│   │   └── xcshareddata
+│   └── RunnerTests
+│       └── RunnerTests.swift
+├── lib
+│   ├── main.dart
+│   ├── models
+│   │   └── news_article.dart
+│   ├── services
+│   │   └── storage_service.dart
+│   ├── utils
+│   ├── viewmodels
+│   │   └── news_viewmodel.dart
+│   ├── views
+│   │   └── home_screen.dart
+│   └── widgets
+├── pubspec.yaml
+└── test
+    ├── models
+    │   └── news_article_test.dart
+    └── services
+        └── storage_service_test.dart

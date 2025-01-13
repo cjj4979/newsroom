@@ -15,7 +15,7 @@ class NewsArticle {
   /// The publication date of the article
   final DateTime publishedDate;
 
-  NewsArticle({
+  const NewsArticle({
     required this.title,
     required this.summary,
     required this.imageUrl,
