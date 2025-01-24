@@ -7,8 +7,8 @@ plugins {
 
 android {
     namespace = "com.example.newsroom"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdkVersion flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -16,7 +16,12 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+        test.java.srcDirs += 'src/test/java'
     }
 
     defaultConfig {
@@ -24,10 +29,10 @@ android {
         applicationId = "com.example.newsroom"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutter.versionCode
+        versionName flutter.versionName
     }
 
     buildTypes {
@@ -37,8 +42,32 @@ android {
             signingConfig = signingConfigs.debug
         }
     }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+        }
+    }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    
+    // Testing dependencies
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:4.5.1'
+    testImplementation 'org.mockito:mockito-inline:4.5.1'
+    testImplementation "org.jetbrains.kotlin:kotlin-test:$kotlin_version"
+    testImplementation "org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version"
+    testImplementation 'androidx.test:core:1.5.0'
+    testImplementation 'org.robolectric:robolectric:4.11.1'
+    testImplementation 'org.mockito.kotlin:mockito-kotlin:4.0.0'
+    
+    // Flutter test dependencies
+    testImplementation 'io.flutter:flutter_embedding_debug:1.0.0-1a65d409c7a1438a34d21b60bf30a6fd5db59314'
 }

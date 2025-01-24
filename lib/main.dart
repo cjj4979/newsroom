@@ -1,22 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'viewmodels/news_viewmodel.dart';
+import 'services/news_scraper_service.dart';
+import 'services/storage_service.dart';
+import 'services/background_service.dart';
 
-void main() {
-  runApp(const NewsroomApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  await BackgroundService.initialize();
+  runApp(NewsroomApp(prefs: prefs));
 }
 
 class NewsroomApp extends StatelessWidget {
-  const NewsroomApp({super.key});
+  final SharedPreferences prefs;
+  
+  const NewsroomApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Church Newsroom',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
+    return ChangeNotifierProvider(
+      create: (context) => NewsViewModel(
+        scraperService: NewsScraperService(),
+        storageService: StorageService(prefs),
       ),
-      home: const NewsroomHomePage(),
+      child: MaterialApp(
+        title: 'Newsroom',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+        ),
+        home: const NewsroomHomePage(),
+      ),
     );
   }
 }
@@ -29,25 +45,22 @@ class NewsroomHomePage extends StatefulWidget {
 }
 
 class _NewsroomHomePageState extends State<NewsroomHomePage> {
-  late final WebViewController _controller;
-  bool _isLoading = true;
+  late final WebViewController controller;
+  bool _isFirstLoad = true;
 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
+    controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (String url) {
-            setState(() {
-              _isLoading = true;
-            });
-          },
           onPageFinished: (String url) {
-            setState(() {
-              _isLoading = false;
-            });
+            // Only refresh on subsequent loads, not the first one
+            if (!_isFirstLoad) {
+              context.read<NewsViewModel>().refreshArticles();
+            }
+            _isFirstLoad = false;
           },
         ),
       )
@@ -61,17 +74,8 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Church Newsroom'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _controller),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
-        ],
-      ),
+      body: WebViewWidget(controller: controller),
     );
   }
 }

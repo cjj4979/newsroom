@@ -36,6 +36,7 @@ class HomeScreen extends StatelessWidget {
           }
 
           if (viewModel.articles.isEmpty) {
+            print('In home screen articles empty');
             return const Center(
               child: Text('No articles available'),
             );

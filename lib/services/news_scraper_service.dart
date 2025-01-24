@@ -13,56 +13,97 @@ class NewsScraperService {
 
   NewsScraperService({http.Client? client}) : _client = client ?? http.Client();
 
+  /// Prints the HTML content with line numbers for debugging
+  void _printResponseBody(String body) {
+    print('\nNewsScraperService: Response Body Start ==================');
+    final lines = body.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      print('${i + 1}: ${lines[i]}');
+    }
+    print('NewsScraperService: Response Body End ====================\n');
+  }
+
   /// Fetches and parses the latest news articles from the website.
   /// 
   /// Returns a List of [NewsArticle] objects.
   /// Throws [ScrapingException] if the fetch fails.
   Future<List<NewsArticle>> fetchLatestNews() async {
+    print('NewsScraperService: Starting to fetch latest news');
     try {
+      print('NewsScraperService: Making HTTP request to $_baseUrl');
       final response = await _client.get(Uri.parse(_baseUrl));
       
       if (response.statusCode != 200) {
+        print('NewsScraperService: HTTP request failed with status ${response.statusCode}');
         throw ScrapingException('Failed to fetch news: ${response.statusCode}');
       }
+      print('NewsScraperService: HTTP request successful');
+      
+      // Print response body for inspection
+      //_printResponseBody(response.body);
 
+      print('NewsScraperService: Parsing HTML document');
       final document = parser.parse(response.body);
       final articles = <NewsArticle>[];
 
-      // Find all article elements on the page
-      final articleElements = document.querySelectorAll('article.article-item');
+      // Find all article elements in the results container
+      final articleElements = document.querySelectorAll('div.results > a.result');
+      print('NewsScraperService: Found ${articleElements.length} article elements');
 
       for (var element in articleElements) {
         try {
-          final titleElement = element.querySelector('.article-title a');
-          final summaryElement = element.querySelector('.article-summary');
-          final imageElement = element.querySelector('img');
-          final dateElement = element.querySelector('.article-date');
-
-          if (titleElement == null) continue;
-
+          print('NewsScraperService: Parsing article element');
+          
+          // Get title from h3 element
+          final titleElement = element.querySelector('h3');
+          if (titleElement == null) {
+            print('NewsScraperService: Skipping article - no title element found');
+            continue;
+          }
           final title = titleElement.text.trim();
-          final articleUrl = titleElement.attributes['href'] ?? '';
+          
+          // Get article URL from the anchor tag's href attribute
+          final articleUrl = element.attributes['href'] ?? '';
+          
+          // Get summary from the p > span element
+          final summaryElement = element.querySelector('p > span');
           final summary = summaryElement?.text.trim() ?? '';
+          
+          // Get image URL from the thumbnail img element
+          final imageElement = element.querySelector('.news-releases-thumbnail img');
           final imageUrl = imageElement?.attributes['src'] ?? '';
+          
+          // Get date from the date-line span
+          final dateElement = element.querySelector('.date-line span');
           final dateStr = dateElement?.text.trim() ?? '';
+
+          print('NewsScraperService: Article data:');
+          print('  - Title: $title');
+          print('  - URL: $articleUrl');
+          print('  - Summary length: ${summary.length}');
+          print('  - Image URL: $imageUrl');
+          print('  - Date string: $dateStr');
 
           final publishedDate = _parseDate(dateStr);
 
           articles.add(NewsArticle(
             title: title,
             summary: summary,
-            imageUrl: imageUrl,
-            articleUrl: articleUrl,
+            imageUrl: imageUrl.startsWith('//') ? 'https:$imageUrl' : imageUrl,
+            articleUrl: articleUrl.startsWith('/') ? 'https://news-kr.churchofjesuschrist.org$articleUrl' : articleUrl,
             publishedDate: publishedDate,
           ));
+          print('NewsScraperService: Successfully added article to list');
         } catch (e) {
-          print('Error parsing article: $e');
+          print('NewsScraperService: Error parsing article: $e');
           continue;
         }
       }
 
+      print('NewsScraperService: Successfully parsed ${articles.length} articles');
       return articles;
     } catch (e) {
+      print('NewsScraperService: Failed to fetch news with error: $e');
       throw ScrapingException('Failed to fetch news: $e');
     }
   }
@@ -70,9 +111,18 @@ class NewsScraperService {
   /// Parses the date string from the website into a DateTime object.
   DateTime _parseDate(String dateStr) {
     try {
-      // Implement date parsing logic based on the website's date format
-      return DateTime.now(); // Placeholder
+      print('NewsScraperService: Parsing date string: $dateStr');
+      // Example date format: "2025년 1월 16일"
+      final parts = dateStr.split(' | ')[0].split(' ');
+      if (parts.length >= 3) {
+        final year = int.parse(parts[0].replaceAll('년', ''));
+        final month = int.parse(parts[1].replaceAll('월', ''));
+        final day = int.parse(parts[2].replaceAll('일', ''));
+        return DateTime(year, month, day);
+      }
+      return DateTime.now();
     } catch (e) {
+      print('NewsScraperService: Failed to parse date, using current time');
       return DateTime.now();
     }
   }
