@@ -5,10 +5,10 @@ import '../models/news_article.dart';
 /// Service responsible for storing and retrieving data from local storage.
 class StorageService {
   /// Key for storing the list of articles
-  static const String _articlesKey = 'news_articles';
+  static const String _articlesKey = 'flutter.news_articles';
   
   /// Key for storing the last fetch timestamp
-  static const String _lastFetchKey = 'last_fetch_time';
+  static const String _lastFetchKey = 'flutter.last_fetch_time';
   
   /// Instance of SharedPreferences for data persistence
   final SharedPreferences _prefs;

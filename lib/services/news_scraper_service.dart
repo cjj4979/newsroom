@@ -85,11 +85,13 @@ class NewsScraperService {
           print('  - Date string: $dateStr');
 
           final publishedDate = _parseDate(dateStr);
+          print('  - Published Date: $publishedDate');
 
           articles.add(NewsArticle(
             title: title,
             summary: summary,
-            imageUrl: imageUrl.startsWith('//') ? 'https:$imageUrl' : imageUrl,
+            imageUrl: imageUrl.startsWith('//') ? 'https:$imageUrl' : 
+                     imageUrl.startsWith('/') ? 'https://news-kr.churchofjesuschrist.org$imageUrl' : imageUrl,
             articleUrl: articleUrl.startsWith('/') ? 'https://news-kr.churchofjesuschrist.org$articleUrl' : articleUrl,
             publishedDate: publishedDate,
           ));
@@ -112,17 +114,19 @@ class NewsScraperService {
   DateTime _parseDate(String dateStr) {
     try {
       print('NewsScraperService: Parsing date string: $dateStr');
-      // Example date format: "2025년 1월 16일"
-      final parts = dateStr.split(' | ')[0].split(' ');
-      if (parts.length >= 3) {
-        final year = int.parse(parts[0].replaceAll('년', ''));
-        final month = int.parse(parts[1].replaceAll('월', ''));
-        final day = int.parse(parts[2].replaceAll('일', ''));
-        return DateTime(year, month, day);
-      }
-      return DateTime.now();
+      // Example date format: "2025년 1월 23일 | 뉴스 보도"
+      // First split by '|' and trim to get just the date part
+      final datePart = dateStr.split('|')[0].trim();
+      
+      // Now split by spaces and remove Korean characters
+      final year = int.parse(datePart.split('년')[0].trim());
+      final month = int.parse(datePart.split('년')[1].split('월')[0].trim());
+      final day = int.parse(datePart.split('월')[1].split('일')[0].trim());
+      
+      print('NewsScraperService: Parsed date - year: $year, month: $month, day: $day');
+      return DateTime(year, month, day);
     } catch (e) {
-      print('NewsScraperService: Failed to parse date, using current time');
+      print('NewsScraperService: Failed to parse date: $e, using current time');
       return DateTime.now();
     }
   }

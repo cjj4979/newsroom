@@ -1,27 +1,48 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/news_article.dart';
 
 class WidgetUpdateService {
   static const platform = MethodChannel('com.example.newsroom/widget');
   static const int maxArticles = 10; // Maximum number of articles to store
+  static const String fileName = "news_articles.json";
 
   static Future<void> updateWidgetWithArticles(List<NewsArticle> articles) async {
     try {
       print('WidgetUpdateService: Updating widget with ${articles.length} articles');
-      final prefs = await SharedPreferences.getInstance();
       
-      // Save to widget storage (limited to maxArticles)
+      // Print dates for all articles
+      for (var i = 0; i < articles.length; i++) {
+        print('WidgetUpdateService: Article $i date: ${articles[i].publishedDate}');
+      }
+      
+      // Save to file storage (limited to maxArticles)
       final List<Map<String, dynamic>> articlesList = articles.take(maxArticles).map((article) => {
         'title': article.title,
         'content': article.summary,
         'imageUrl': article.imageUrl,
-        'date': article.publishedDate.toIso8601String(),
+        'articleUrl': article.articleUrl,
+        'date': article.publishedDate.toIso8601String()
       }).toList();
 
-      await prefs.setString('flutter.news_articles', jsonEncode(articlesList));
-      print('WidgetUpdateService: Widget storage updated with ${articlesList.length} articles');
+      // Get the application files directory
+      final directory = await getApplicationDocumentsDirectory();
+      final filesDir = directory.parent.path + '/files';
+      final file = File('$filesDir/$fileName');
+
+      // Create the directory if it doesn't exist
+      await Directory(filesDir).create(recursive: true);
+
+      // Write JSON data to the file
+      final jsonString = jsonEncode(articlesList);
+      await file.writeAsString(jsonString);
+      print('WidgetUpdateService: Successfully wrote articles to ${file.path}');
+
+      // Verify the save by reading it back
+      final savedData = await file.readAsString();
+      print('WidgetUpdateService: Verification - Data in file: $savedData');
       
       try {
         // Try to update through platform channel regardless of context

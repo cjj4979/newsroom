@@ -6,6 +6,7 @@ import 'viewmodels/news_viewmodel.dart';
 import 'services/news_scraper_service.dart';
 import 'services/storage_service.dart';
 import 'services/background_service.dart';
+import 'package:flutter/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +48,7 @@ class NewsroomHomePage extends StatefulWidget {
 class _NewsroomHomePageState extends State<NewsroomHomePage> {
   late final WebViewController controller;
   bool _isFirstLoad = true;
+  static const platform = MethodChannel('com.example.newsroom/widget');
 
   @override
   void initState() {
@@ -63,10 +65,32 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
             _isFirstLoad = false;
           },
         ),
-      )
-      ..loadRequest(
+      );
+    
+    _initializeController();
+  }
+
+  Future<void> _initializeController() async {
+    try {
+      // Check if we were launched with an article URL
+      final String? articleUrl = await platform.invokeMethod('getInitialArticleUrl');
+      
+      if (articleUrl != null && articleUrl.isNotEmpty) {
+        print('Loading article URL from widget click: $articleUrl');
+        await controller.loadRequest(Uri.parse(articleUrl));
+      } else {
+        print('Loading default newsroom URL');
+        await controller.loadRequest(
+          Uri.parse('https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C'),
+        );
+      }
+    } catch (e) {
+      print('Error initializing controller: $e');
+      // Load default URL if there's an error
+      await controller.loadRequest(
         Uri.parse('https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C'),
       );
+    }
   }
 
   @override
