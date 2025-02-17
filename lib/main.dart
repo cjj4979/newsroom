@@ -53,12 +53,26 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
   @override
   void initState() {
     super.initState();
+    _initializeWebView();
+    _setupMethodChannel();
+  }
+
+  void _setupMethodChannel() {
+    platform.setMethodCallHandler((MethodCall call) async {
+      if (call.method == 'updateArticleUrl') {
+        final String url = call.arguments as String;
+        print('Received new article URL: $url');
+        await controller.loadRequest(Uri.parse(url));
+      }
+    });
+  }
+
+  void _initializeWebView() {
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageFinished: (String url) {
-            // Only refresh on subsequent loads, not the first one
             if (!_isFirstLoad) {
               context.read<NewsViewModel>().refreshArticles();
             }
@@ -72,8 +86,8 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
 
   Future<void> _initializeController() async {
     try {
-      // Check if we were launched with an article URL
       final String? articleUrl = await platform.invokeMethod('getInitialArticleUrl');
+      print('Checking for initial article URL: $articleUrl');
       
       if (articleUrl != null && articleUrl.isNotEmpty) {
         print('Loading article URL from widget click: $articleUrl');
@@ -86,7 +100,6 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
       }
     } catch (e) {
       print('Error initializing controller: $e');
-      // Load default URL if there's an error
       await controller.loadRequest(
         Uri.parse('https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C'),
       );
@@ -98,6 +111,14 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Church Newsroom'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () async {
+              await controller.reload();
+            },
+          ),
+        ],
       ),
       body: WebViewWidget(controller: controller),
     );
