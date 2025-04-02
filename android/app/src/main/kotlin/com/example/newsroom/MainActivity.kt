@@ -81,30 +81,14 @@ class MainActivity: FlutterActivity() {
 
     private fun updateWidget() {
         Log.d("MainActivity", "Starting widget update process")
-        // Get the file from the app's internal files directory
-        val file = File(applicationContext.filesDir, fileName)
-        if (file.exists()) {
-            try {
-                val articlesJson = file.readText()
-                val jsonArray = JSONArray(articlesJson)
-                Log.d("MainActivity", "Found ${jsonArray.length()} articles in file")
-                for (i in 0 until jsonArray.length()) {
-                    val article = jsonArray.getJSONObject(i)
-                    Log.d("MainActivity", "Article $i date from file: ${article.optString("date", "NO_DATE")}")
-                }
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error parsing articles JSON: $e")
-            }
-        } else {
-            Log.d("MainActivity", "No articles file found at ${file.absolutePath}")
-        }
-
+        
         // Trigger widget update broadcast
         val appWidgetManager = AppWidgetManager.getInstance(applicationContext)
         val appWidgetIds = appWidgetManager.getAppWidgetIds(
             ComponentName(applicationContext, NewsWidget::class.java)
         )
         Log.d("MainActivity", "Found ${appWidgetIds.size} widgets to update")
+        
         val intent = Intent(applicationContext, NewsWidget::class.java).apply {
             action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, appWidgetIds)

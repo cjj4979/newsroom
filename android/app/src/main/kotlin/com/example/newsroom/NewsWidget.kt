@@ -49,7 +49,11 @@ class NewsWidget : AppWidgetProvider() {
             views.setPendingIntentTemplate(R.id.widget_list_view, pendingIntent)
             Log.d("NewsWidget", "Set PendingIntent template on widget")
             
+            // Set empty view
+            views.setEmptyView(R.id.widget_list_view, android.R.id.empty)
+            
             appWidgetManager.updateAppWidget(appWidgetId, views)
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
             Log.d("NewsWidget", "Widget $appWidgetId update completed")
         }
     }
@@ -77,52 +81,6 @@ class NewsWidget : AppWidgetProvider() {
             // Notify the widget that the data has changed
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list_view)
             onUpdate(context, appWidgetManager, appWidgetIds)
-        }
-    }
-
-    companion object {
-        fun updateAppWidget(
-            context: Context,
-            appWidgetManager: AppWidgetManager,
-            appWidgetId: Int
-        ) {
-            Log.d("NewsWidget", "updateAppWidget called for widget $appWidgetId")
-            
-            // Create an Intent to launch MainActivity when clicked
-            val intent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                // Add action to help with debugging
-                action = "com.example.newsroom.WIDGET_CLICK"
-            }
-            Log.d("NewsWidget", "Created main intent with flags: ${intent.flags}")
-            
-            // Create the pending intent
-            val pendingIntent = PendingIntent.getActivity(
-                context,
-                0,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            Log.d("NewsWidget", "Created PendingIntent with flags: UPDATE_CURRENT | IMMUTABLE")
-            
-            val serviceIntent = Intent(context, NewsWidgetService::class.java)
-            Log.d("NewsWidget", "Created service intent for NewsWidgetService")
-            
-            val views = RemoteViews(context.packageName, R.layout.news_widget)
-            views.setRemoteAdapter(R.id.widget_list_view, serviceIntent)
-            Log.d("NewsWidget", "Set remote adapter for widget list view")
-            
-            // Set the pending intent template
-            views.setPendingIntentTemplate(R.id.widget_list_view, pendingIntent)
-            Log.d("NewsWidget", "Set pending intent template for list view")
-            
-            // Set empty view
-            views.setEmptyView(R.id.widget_list_view, android.R.id.empty)
-            
-            Log.d("NewsWidget", "Updating widget UI with list adapter")
-            appWidgetManager.updateAppWidget(appWidgetId, views)
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
-            Log.d("NewsWidget", "Widget update completed")
         }
     }
 }

@@ -29,7 +29,7 @@ class WidgetUpdateService {
 
       // Get the application files directory
       final directory = await getApplicationDocumentsDirectory();
-      final filesDir = directory.parent.path + '/files';
+      final filesDir = '${directory.parent.path}/files';
       final file = File('$filesDir/$fileName');
 
       // Create the directory if it doesn't exist

@@ -42,7 +42,6 @@ class NewsWidgetItemFactory(private val context: Context) : RemoteViewsFactory {
 
             val jsonStr = file.readText()
             Log.d("NewsWidget", "Successfully read ${jsonStr.length} characters from file")
-            Log.d("NewsWidget", "Read from file: $jsonStr")
             
             val jsonArray = JSONArray(jsonStr)
             newsItems = (0 until jsonArray.length()).map { i ->
@@ -79,7 +78,6 @@ class NewsWidgetItemFactory(private val context: Context) : RemoteViewsFactory {
         rv.setTextViewText(R.id.news_date, formatDate(item.date))
         
         try {
-            Log.d("NewsWidget", "Starting to load image for article $position: ${item.imageUrl}")
             // Load image using Glide with size limit and timeout
             val bitmap = Glide.with(context)
                 .asBitmap()
@@ -90,7 +88,6 @@ class NewsWidgetItemFactory(private val context: Context) : RemoteViewsFactory {
                 .get(5, java.util.concurrent.TimeUnit.SECONDS) // Add explicit timeout
             
             if (bitmap != null) {
-                Log.d("NewsWidget", "Successfully loaded image for article $position")
                 rv.setImageViewBitmap(R.id.news_image, bitmap)
             } else {
                 Log.e("NewsWidget", "Failed to load image for article $position: Bitmap is null")
@@ -104,21 +101,15 @@ class NewsWidgetItemFactory(private val context: Context) : RemoteViewsFactory {
         // Create the fill-in intent
         val fillInIntent = Intent().apply {
             putExtra("articleUrl", item.articleUrl)
-            // Add action for debugging
             action = "com.example.newsroom.WIDGET_CLICK"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-        Log.d("NewsWidget", "Creating fill-in intent for article at position $position")
-        Log.d("NewsWidget", "Article URL being added to intent: ${item.articleUrl}")
-        Log.d("NewsWidget", "Fill-in intent action: ${fillInIntent.action}")
-        Log.d("NewsWidget", "Fill-in intent flags: ${fillInIntent.flags}")
         
         // Set the fill-in intent on both the container and individual views
         rv.setOnClickFillInIntent(R.id.news_item_container, fillInIntent)
         rv.setOnClickFillInIntent(R.id.news_title, fillInIntent)
         rv.setOnClickFillInIntent(R.id.news_summary, fillInIntent)
         rv.setOnClickFillInIntent(R.id.news_image, fillInIntent)
-        Log.d("NewsWidget", "Fill-in intent set on all clickable views")
         
         return rv
     }
