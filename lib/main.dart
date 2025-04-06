@@ -56,6 +56,13 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
   bool _canGoBack = false;
   bool _isLoadMoreOperation = false;
   String _currentListUrl = 'https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C';
+  
+  // Store pending URL to load from widget clicks
+  String? _pendingArticleUrl;
+  // SharedPreferences instance for persistent storage
+  SharedPreferences? _prefs;
+  // Key for storing the pending URL
+  static const String _pendingUrlKey = 'pending_article_url';
 
   @override
   void initState() {
@@ -66,11 +73,15 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
       _isStyleApplied = false;
     });
     
+    // Initialize both the WebView and SharedPreferences
+    _initializeSharedPreferences();
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeWebView();
       _setupMethodChannel();
       
-      Future.delayed(const Duration(seconds: 10), () {
+      // Safety check timeout
+      Future.delayed(const Duration(seconds: 15), () {
         if (_isLoading) {
           print("Emergency timeout reached - forcing content display");
           _forceDisplayContent();
@@ -79,15 +90,44 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
     });
   }
 
+  Future<void> _initializeSharedPreferences() async {
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      // Check if there's a stored pending URL from a previous widget click
+      final storedUrl = _prefs?.getString(_pendingUrlKey);
+      if (storedUrl != null && storedUrl.isNotEmpty) {
+        print('Found stored pending URL: $storedUrl');
+        setState(() {
+          _pendingArticleUrl = storedUrl;
+        });
+      }
+    } catch (e) {
+      print('Error initializing SharedPreferences: $e');
+    }
+  }
+
   void _setupMethodChannel() {
     platform.setMethodCallHandler((MethodCall call) async {
       if (call.method == 'updateArticleUrl') {
         final String url = call.arguments as String;
-        print('Received new article URL: $url');
+        print('Received new article URL via method channel: $url');
+        
+        // Store the URL in SharedPreferences for persistence across app restarts
+        await _prefs?.setString(_pendingUrlKey, url);
+        
+        // Set the pending URL
         setState(() {
+          _pendingArticleUrl = url;
           _isLoading = true;
         });
-        await _controller?.loadRequest(Uri.parse(url));
+        
+        // Only load the URL if controller is already initialized
+        if (_isControllerInitialized && _controller != null) {
+          print('Controller is initialized, loading URL immediately: $url');
+          await _loadUrl(url);
+        } else {
+          print('Controller not initialized yet, URL will be loaded when ready');
+        }
       }
     });
   }
@@ -206,12 +246,100 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
         print("WebViewController successfully initialized");
       });
       
-      _loadInitialUrl();
+      // Now that controller is initialized, handle initial URL loading
+      _handleInitialUrlLoading();
     } catch (e) {
       print("Error initializing WebViewController: $e");
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  // New method to handle initial URL loading with proper sequencing
+  Future<void> _handleInitialUrlLoading() async {
+    try {
+      print('Handling initial URL loading');
+      
+      // Clear the initialization flag for proper scrolling behavior
+      if (_controller != null) {
+        await _controller!.runJavaScript('sessionStorage.removeItem("appInitialized")');
+      }
+      
+      // Three possible cases in order of priority:
+      // 1. Pending URL from method channel during this session
+      // 2. Stored URL from SharedPreferences (from previous widget click)
+      // 3. Initial URL from platform method channel (from current launch intent)
+      // 4. Default newsroom URL
+      
+      if (_pendingArticleUrl != null && _pendingArticleUrl!.isNotEmpty) {
+        print('Loading pending URL from current session: $_pendingArticleUrl');
+        await _loadUrl(_pendingArticleUrl!);
+        // Clear the pending URL after loading
+        _pendingArticleUrl = null;
+        await _prefs?.remove(_pendingUrlKey);
+      } else {
+        // Check if there's an initial URL from the launch intent
+        final String? articleUrl = await platform.invokeMethod('getInitialArticleUrl');
+        print('Checking for initial article URL from intent: $articleUrl');
+        
+        if (articleUrl != null && articleUrl.isNotEmpty) {
+          print('Loading article URL from launch intent: $articleUrl');
+          await _loadUrl(articleUrl);
+        } else {
+          print('Loading default newsroom URL');
+          await _loadUrl('https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C');
+        }
+      }
+    } catch (e) {
+      print('Error in _handleInitialUrlLoading: $e');
+      // Fallback to default URL if anything fails
+      if (_controller != null) {
+        await _loadUrl('https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C');
+      }
+    }
+  }
+
+  // Centralized URL loading function with proper error handling
+  Future<void> _loadUrl(String url) async {
+    if (_controller == null) {
+      print('Cannot load URL: WebViewController is null');
+      // Store the URL to be loaded when controller is initialized
+      setState(() {
+        _pendingArticleUrl = url;
+        _isLoading = true;
+      });
+      // Persist the URL
+      await _prefs?.setString(_pendingUrlKey, url);
+      return;
+    }
+    
+    try {
+      setState(() {
+        _isLoading = true;
+        _isStyleApplied = false;
+      });
+      
+      print('Loading URL: $url');
+      await _controller!.loadRequest(Uri.parse(url));
+      
+      // Clear the pending URL from SharedPreferences after successful load
+      await _prefs?.remove(_pendingUrlKey);
+    } catch (e) {
+      print('Error loading URL $url: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Update the home page navigation to use the centralized URL loading
+  Future<void> _goToHomePage() async {
+    try {
+      print('Navigating back to last list page: $_currentListUrl');
+      await _loadUrl(_currentListUrl);
+    } catch (e) {
+      print('Error navigating to home page: $e');
     }
   }
 
@@ -485,7 +613,7 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
                   console.log('[Load More Timeout] Safety timeout reached - restoring state');
                   resetButtonState();
                 }
-              }, 5000);
+              }, 8000);
               
               return false;
             };
@@ -603,23 +731,6 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
     return url.contains('/article/');
   }
 
-  Future<void> _goToHomePage() async {
-    if (_controller == null) return;
-    
-    try {
-      print('Navigating back to last list page: $_currentListUrl');
-      setState(() {
-        _isLoading = true;
-        _isStyleApplied = false;
-      });
-      await _controller!.loadRequest(
-        Uri.parse(_currentListUrl),
-      );
-    } catch (e) {
-      print('Error navigating to home page: $e');
-    }
-  }
-
   Future<void> _updateButtonVisibility() async {
     if (_controller == null) return;
     
@@ -657,45 +768,12 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
     await _updateButtonVisibility();
   }
 
-  Future<void> _loadInitialUrl() async {
-    if (_controller == null) return;
-    
-    try {
-      final String? articleUrl = await platform.invokeMethod('getInitialArticleUrl');
-      print('Checking for initial article URL: $articleUrl');
-      
-      setState(() {
-        _isLoading = true;
-      });
-      
-      await _controller!.runJavaScript('sessionStorage.removeItem("appInitialized")');
-      
-      if (articleUrl != null && articleUrl.isNotEmpty) {
-        print('Loading article URL from widget click: $articleUrl');
-        await _controller!.loadRequest(Uri.parse(articleUrl));
-      } else {
-        print('Loading default newsroom URL');
-        await _controller!.loadRequest(
-          Uri.parse('https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C'),
-        );
-      }
-    } catch (e) {
-      print('Error loading initial URL: $e');
-      if (_controller != null) {
-        await _controller!.loadRequest(
-          Uri.parse('https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C'),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !_canGoBack,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        
         await _goToHomePage();
       },
       child: Scaffold(
@@ -759,6 +837,8 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
 
   @override
   void dispose() {
+    // Clean up resources
+    _controller = null;
     super.dispose();
   }
 }
