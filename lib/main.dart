@@ -29,7 +29,7 @@ class NewsroomApp extends StatelessWidget {
       ),
       child: MaterialApp(
         title: 'Newsroom',
-        theme: ThemeData(
+      theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
         home: const NewsroomHomePage(),
@@ -52,6 +52,9 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
   bool _isControllerInitialized = false;  // Track initialization state
   static const platform = MethodChannel('com.example.newsroom/widget');
   DateTime? _lastFetchTime;
+  bool _canGoBack = false;
+  bool _isLoadMoreOperation = false;
+  String _currentListUrl = 'https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C'; // Store the current list URL
 
   @override
   void initState() {
@@ -87,13 +90,24 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
   void _initializeWebView() {
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1')
+      ..setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15.0 Safari/604.1')
       ..setBackgroundColor(const Color(0xFFF5F5F5))
       ..addJavaScriptChannel(
         'FlutterChannel',
         onMessageReceived: (JavaScriptMessage message) {
-          print('Message from JavaScript: ${message.message}');
-          if (message.message == 'transformationComplete') {
+          print('Received message from JavaScript: ${message.message}');
+          if (message.message == 'loadMoreClicked') {
+            print('Load More button was clicked');
+            // We'll need to clear history after load more is clicked
+            _isLoadMoreOperation = true;
+          } else if (message.message == 'loadMoreCompleted') {
+            print('Load More operation completed');
+            // Now it's safe to clear history
+            if (_isLoadMoreOperation) {
+              _clearWebViewHistory();
+              _isLoadMoreOperation = false;
+            }
+          } else if (message.message == 'transformationComplete') {
             setState(() {
               _isLoading = false;
             });
@@ -106,15 +120,24 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
         NavigationDelegate(
           onUrlChange: (UrlChange change) {
             print('URL changed to: ${change.url}');
+            
+            // If URL completely changes (not from "Load More"), clear the flag
+            controller.runJavaScript("if(!window.location.href.includes('page=')) { sessionStorage.removeItem('isLoadMoreOperation'); }");
+            
+            // Update back button state
+            _updateCanGoBack();
           },
           onPageStarted: (String url) {
             print('Page started loading: $url');
+            // Apply basic hiding styles immediately
+            _applyInitialStyles();
+            // Update back button state
+            _updateCanGoBack();
           },
           onPageFinished: (String url) {
             print('Page finished loading: $url');
             
-            // Apply the same styling to all pages
-            // We don't need separate styling for articles and lists anymore
+            // Apply the complete styling to all pages
             _injectCustomCSS();
             
             if (!_isFirstLoad) {
@@ -127,8 +150,31 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
             }
             _isFirstLoad = false;
             
-            // Always force display content after page loads
+            // Update the stored list URL if this is a list page
+            if (_isNewsListPage(url)) {
+              setState(() {
+                _currentListUrl = url;
+                print('Updated _currentListUrl to: $_currentListUrl');
+              });
+            }
+            
+            // Ensure content is visible after styling
+            controller.runJavaScript('''
+              (function() {
+                try {
+                  const content = document.getElementById('content');
+                  if (content) content.style.opacity = '1';
+                } catch (e) {
+                  console.error('Error ensuring content visibility:', e);
+                }
+              })();
+            ''');
+            
+            // Force display content (now primarily ensures visibility)
             _forceDisplayContent();
+            
+            // Update back button state
+            _updateCanGoBack();
           },
           onNavigationRequest: (NavigationRequest request) {
             print('Navigation request: ${request.url}');
@@ -148,13 +194,55 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
     _loadInitialUrl();
   }
 
+  Future<void> _applyInitialStyles() async {
+    try {
+      await controller.runJavaScript('''
+        (function() {
+          // Create a style element to hide unwanted content immediately
+          const initialStyle = document.createElement('style');
+          initialStyle.textContent = `
+            /* Hide all headers, navigation, footer immediately */
+            platform-header, #navigation, .navigation, platform-footer, footer, #footer,
+            #drawer-whole, #language-select-list, #country-language-list, 
+            .new-lang-list, .new-lang-list2, .new-lang-list3, 
+            .nav-wrapper, #skipToMainContent, #lightningjs-usabilla_live,
+            .search, .search-trigger, #yir-banner, div[data-render-view="navigation"], 
+            div[data-render-view="header"], div[data-render-view="footer"], 
+            section[data-render-view="header"], .consent-section, .modal-holder, 
+            .international.language {
+              display: none !important;
+            }
+            
+            /* Set initial body styles to ensure correct positioning */
+            body {
+              margin: 0 !important;
+              padding: 0 !important;
+              position: relative !important;
+              top: 0 !important;
+            }
+            
+            /* Make content visible immediately but hidden until fully styled */
+            #content {
+              padding-top: 0 !important;
+              margin-top: 0 !important;
+              opacity: 0;
+              transition: opacity 0.2s ease;
+            }
+          `;
+          
+          // Immediately append the style to the head (or create a head if needed)
+          (document.head || document.documentElement).appendChild(initialStyle);
+        })();
+      ''');
+    } catch (e) {
+      print('Error applying initial styles: $e');
+    }
+  }
+
   Future<void> _injectCustomCSS() async {
     final String javascript = r'''
       (function() {
-        console.log("Applying minimal styling with enhanced button");
-        
-        // Scroll to top when page loads
-        window.scrollTo(0, 0);
+        console.log("Applying full styling with enhanced button");
         
         // Hide headers, footers, and navigation but keep the content structure
         const hideStyle = document.createElement('style');
@@ -173,11 +261,13 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
           
           /* Basic body styling */
           body {
-            margin: 0;
-            padding: 0;
+            margin: 0 !important;
+            padding: 0 !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f9f9f9;
             pointer-events: auto !important;
+            position: relative !important;
+            top: 0 !important;
           }
           
           /* Content area styling */
@@ -185,13 +275,43 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
             padding-top: 0 !important;
             margin-top: 0 !important;
             pointer-events: auto !important;
+            opacity: 1;
           }
           
-          /* Keep year dropdown visible */
-          .submenus-holder {
+          /* News releases header styling */
+          #news-releases-header {
             margin-bottom: 20px;
-            text-align: right;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+          }
+          
+          #news-releases-header h1 {
+            margin: 0;
+            padding: 0;
+            color: #333;
+          }
+          
+          /* Make date text pink */
+          .date-line, .date-line span, .date, .date span {
+            color: #c2356e !important;
+            font-weight: 500 !important;
+          }
+          
+          /* Article date styling for article detail pages */
+          .article-content .date-line, 
+          .article-content time, 
+          .article-header time,
+          .article-header .date {
+            color: #c2356e !important;
+            font-weight: 500 !important;
+            font-size: 0.9em !important;
+          }
+          
+          /* Add more space above the year dropdown */
+          .submenus-holder {
             display: block !important;
+            text-align: right;
+            margin-top: 50px !important;
           }
           
           .year-select-menu, .submenu-trigger {
@@ -246,19 +366,6 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
             margin: 28px 0;
           }
           
-          /* News releases header styling */
-          #news-releases-header {
-            margin-bottom: 20px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 10px;
-          }
-          
-          #news-releases-header h1 {
-            margin: 0;
-            padding: 0;
-            color: #333;
-          }
-          
           /* Ensure all elements are clickable */
           * {
             pointer-events: auto !important;
@@ -276,6 +383,16 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
         const overlays = document.querySelectorAll('#loading-overlay');
         overlays.forEach(overlay => overlay.remove());
         
+        // Scroll to top only if this is the app launch (first page load)
+        // We detect this using URL or a flag stored in sessionStorage
+        if (!sessionStorage.getItem('appInitialized')) {
+          console.log('First app load: Scrolling to top');
+          window.scrollTo(0, 0);
+          sessionStorage.setItem('appInitialized', 'true');
+        } else {
+          console.log('Not first load, preserving scroll position');
+        }
+        
         // Add click handling to the Load More button
         function setupLoadMoreButton() {
           const loadMoreButton = document.querySelector('.news-releases-load-more');
@@ -289,40 +406,75 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
                 return false;
               }
               
+              // Prevent default behavior (stops navigation/history change)
+              e.preventDefault();
+              
+              // Mark this as a Load More operation (though we won't use it for scrolling)
+              window.isLoadMoreClicked = true; 
+              
               // Apply loading state
               this.classList.add('loading');
               this.textContent = '로딩 중...'; // "Loading..." in Korean
               
-              // Call original handler
+              // Call the original click handler to fetch content
               if (originalClick) {
                 originalClick.call(this, e);
               }
               
-              // Watch for new content being added
+              // Notify Flutter that "Load More" was clicked
+              if (window.FlutterChannel) {
+                window.FlutterChannel.postMessage('loadMoreClicked');
+              }
+              
+              // Function to simply reset the button state
+              const resetButtonState = () => {
+                console.log('[Load More Restore] Resetting button state');
+                this.classList.remove('loading');
+                this.textContent = '더 로드하기'; // Restore to "Load More" text
+                
+                // Clear the flag
+                window.isLoadMoreClicked = false;
+                
+                // Notify Flutter
+                if (window.FlutterChannel) {
+                  window.FlutterChannel.postMessage('loadMoreCompleted');
+                }
+              };
+              
+              // Watch for new content being added using a simple observer
               const resultsContainer = document.querySelector('.results');
               if (resultsContainer) {
                 const observer = new MutationObserver((mutations) => {
-                  // If new content is added, enable the button
+                  let hasNewContent = false;
                   mutations.forEach((mutation) => {
                     if (mutation.addedNodes.length > 0) {
-                      this.classList.remove('loading');
-                      this.textContent = '더 로드하기'; // Restore original text
-                      observer.disconnect(); // Stop observing once content is added
+                      hasNewContent = true;
                     }
                   });
+                  
+                  if (hasNewContent) {
+                    console.log('[Load More Observer] New content detected');
+                    // Use a short delay to ensure DOM is stable before restoring
+                    setTimeout(() => {
+                      resetButtonState();
+                      observer.disconnect(); // Stop observing
+                    }, 100); // Small delay
+                  }
                 });
                 
-                // Start observing the results container for added nodes
+                // Start observing the results container for direct children additions
                 observer.observe(resultsContainer, { childList: true });
               }
               
-              // Safety timeout to reset button if loading takes too long
+              // Safety timeout to restore state if observer fails
               setTimeout(() => {
-                this.classList.remove('loading');
-                this.textContent = '더 로드하기'; // Restore original text
-              }, 10000);
+                if (window.isLoadMoreClicked) { // Check flag again in case it was already restored
+                  console.log('[Load More Timeout] Safety timeout reached - restoring state');
+                  resetButtonState();
+                }
+              }, 5000); // Restore after 5 seconds if stuck
               
-              return true;
+              return false;  // Prevent default behavior
             };
           }
         }
@@ -344,11 +496,6 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
         if (window.FlutterChannel) {
           window.FlutterChannel.postMessage('transformationComplete');
         }
-        
-        // Ensure page is scrolled to top after loading completes
-        setTimeout(function() {
-          window.scrollTo(0, 0);
-        }, 100);
       })();
     ''';
     
@@ -362,128 +509,131 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
     }
   }
 
-  Future<void> _injectMinimalStyling() async {
-    final String javascript = r'''
-      (function() {
-        console.log("Applying minimal styling to article page");
-        
-        try {
-          // No overlays or spinners, just apply styling
-          
-          const articleStyle = document.createElement('style');
-          articleStyle.textContent = `
-            platform-header, #navigation, .navigation, .submenu-holder, 
-            .submenus-holder, .search, .search-trigger, .modal-holder,
-            #lightningjs-usabilla_live, div[data-render-view="navigation"], 
-            div[data-render-view="header"], div[data-render-view="footer"],
-            .consent-section {
-              display: none !important;
-            }
-            
-            platform-footer, footer, #footer {
-              display: none !important;
-            }
-            
-            body {
-              margin: 0;
-              padding: 0;
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-              overflow-x: hidden; /* Prevent horizontal scroll */
-              pointer-events: auto !important;
-              overflow-y: auto !important;
-              opacity: 1 !important; /* Ensure the body is visible */
-            }
-            
-            #content {
-              margin-top: 0 !important;
-              padding-top: 16px !important;
-              pointer-events: auto !important;
-              opacity: 1 !important;
-              visibility: visible !important;
-            }
-            
-            .news-article {
-              padding: 16px;
-              pointer-events: auto !important;
-              opacity: 1 !important;
-              visibility: visible !important;
-            }
-            
-            img {
-              max-width: 100%;
-              height: auto;
-            }
-            
-            /* Critical fix to ensure everything is clickable */
-            html, body, * {
-              pointer-events: auto !important;
-            }
-            
-            /* Ensure the document is fully visible */
-            html, body, #content, .news-article {
-              opacity: 1 !important;
-              visibility: visible !important;
-            }
-          `;
-          document.head.appendChild(articleStyle);
-          
-          // Make page interactive immediately
-          document.body.style.opacity = '1';
-          document.body.style.pointerEvents = 'auto';
-          document.body.style.visibility = 'visible';
-          
-          // Remove any leftover loading overlays
-          const overlay = document.getElementById('loading-overlay');
-          if (overlay) {
-            overlay.remove();
-          }
-          
-          const earlyBlocker = document.getElementById('early-blocker');
-          if (earlyBlocker) {
-            earlyBlocker.remove();
-          }
-          
-          // Ensure all content is visible
-          const importantElements = ['body', '#content', '.news-article', 'article'];
-          importantElements.forEach(selector => {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(el => {
-              if (el) {
-                el.style.opacity = '1';
-                el.style.visibility = 'visible';
-                el.style.pointerEvents = 'auto';
-                el.style.display = el.tagName.toLowerCase() === 'article' ? 'block' : el.style.display;
-              }
-            });
-          });
-          
-          // Signal that the transformation is complete
-          if (window.FlutterChannel) {
-            window.FlutterChannel.postMessage('transformationComplete');
-          }
-          
-          console.log("Article page styling complete");
-        } catch (error) {
-          console.error("Error styling article page:", error);
-          // Ensure page is visible even if styling fails
-          document.body.style.opacity = '1';
-          document.body.style.visibility = 'visible';
-          
-          if (window.FlutterChannel) {
-            window.FlutterChannel.postMessage('transformationComplete');
-          }
-        }
-      })();
-    ''';
-    
+  // Helper method to force content to display when things go wrong
+  Future<void> _forceDisplayContent() async {
     try {
-      await controller.runJavaScript(javascript);
+      await controller.runJavaScript('''
+        (function() {
+          console.log("Ensuring content is visible");
+          
+          // This function's main role is to ensure visibility and correct basic styling
+          
+          // Ensure basic positioning is correct
+          document.body.style.position = "relative";
+          document.body.style.top = "0";
+          document.body.style.overflow = "";
+          
+          const content = document.getElementById('content');
+          if (content) {
+            content.style.position = "relative";
+            content.style.top = "0";
+            content.style.paddingTop = "0";
+            content.style.marginTop = "0";
+            // Ensure opacity is set for visibility
+            content.style.opacity = "1"; 
+          }
+          
+          console.log("[_forceDisplayContent] Ensured basic positioning and visibility");
+          
+          // Remove any potential lingering overlays
+          const overlay = document.getElementById('loading-overlay');
+          if (overlay) overlay.remove();
+          
+          // Make the page interactive and visible
+          document.body.style.pointerEvents = "auto";
+          document.body.style.visibility = "visible";
+          
+          // Fade in the body (if not already visible)
+          if (document.body.style.opacity !== '1') {
+            setTimeout(() => {
+              document.body.style.opacity = "1";
+            }, 50);
+          }
+          
+          // Signal that transformation is complete
+          setTimeout(() => {
+            if (window.FlutterChannel) {
+              window.FlutterChannel.postMessage('transformationComplete');
+            }
+          }, 100);
+        })();
+      ''');
+      
+      // Add a slight delay before removing the loading overlay
+      // This ensures the webpage is fully visible before removing our overlay
+      Future.delayed(const Duration(milliseconds: 300), () {
+        setState(() {
+          _isLoading = false;
+        });
+      });
     } catch (e) {
-      print("Error injecting minimal styling: $e");
+      print("Error in force display content: $e");
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  // Helper to check if the URL is a news list page (main or year-specific)
+  bool _isNewsListPage(String url) {
+    // List pages contain the base path but not '/article/'
+    return url.contains('/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C') && 
+           !url.contains('/article/');
+  }
+
+  // Navigate to the home page
+  Future<void> _goToHomePage() async {
+    try {
+      print('Navigating back to last list page: $_currentListUrl');
+      setState(() {
+        _isLoading = true; // Show loading indicator during navigation
+      });
+      // Load the stored list URL instead of the default one
+      await controller.loadRequest(
+        Uri.parse(_currentListUrl),
+      );
+    } catch (e) {
+      print('Error navigating to home page: $e');
+    }
+  }
+
+  // Update to check if we should show the home button
+  Future<void> _updateButtonVisibility() async {
+    try {
+      final currentUrl = await controller.currentUrl();
+      final isMainPage = _isNewsListPage(currentUrl ?? '');
+      
+      setState(() {
+        // Show home button on all pages except the main news list page
+        _canGoBack = !isMainPage;
+      });
+    } catch (e) {
+      print('Error checking current URL: $e');
+      setState(() {
+        _canGoBack = false;
+      });
+    }
+  }
+
+  // Clear WebView navigation history
+  Future<void> _clearWebViewHistory() async {
+    try {
+      // Use JavaScript to clear the history
+      await controller.runJavaScript('''
+        window.history.pushState(null, "", window.location.href);
+        window.history.replaceState(null, "", window.location.href);
+      ''');
+      
+      // Update button visibility
+      await _updateButtonVisibility();
+    } catch (e) {
+      print('Error clearing WebView history: $e');
+    }
+  }
+
+  Future<void> _updateCanGoBack() async {
+    // Replace this method with the new button visibility check
+    await _updateButtonVisibility();
   }
 
   Future<void> _loadInitialUrl() async {
@@ -496,6 +646,9 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
       setState(() {
         _isLoading = true;
       });
+      
+      // Clear the initialization flag to ensure proper scrolling behavior
+      await controller.runJavaScript('sessionStorage.removeItem("appInitialized")');
       
       if (articleUrl != null && articleUrl.isNotEmpty) {
         print('Loading article URL from widget click: $articleUrl');
@@ -514,97 +667,41 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
     }
   }
 
-  bool _isMainNewsListPage(String url) {
-    try {
-      final Uri uri = Uri.parse(url);
-      final String path = uri.path;
-      
-      if (path.contains('/news-releases/') || 
-          path.contains('/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C/') ||
-          path.contains('/보도-자료/')) {
-        return false;
-      }
-      
-      return (url.endsWith('%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C') || 
-              url.endsWith('보도-자료') ||
-              path.endsWith('/보도-자료') ||
-              path == '/보도-자료/' ||
-              path == '/news-releases' ||
-              path == '/news-releases/' ||
-              (uri.queryParameters.containsKey('year') && 
-               (path.contains('보도-자료') || path.contains('news-releases'))));
-    } catch (e) {
-      print('Error parsing URL: $e');
-      return false;
-    }
-  }
-
-  // Helper method to force content to display when things go wrong
-  Future<void> _forceDisplayContent() async {
-    try {
-      await controller.runJavaScript('''
-        (function() {
-          console.log("Ensuring content is visible");
-          document.body.style.opacity = "1";
-          document.body.style.visibility = "visible";
-          document.body.style.pointerEvents = "auto";
-          
-          const overlay = document.getElementById('loading-overlay');
-          if (overlay) overlay.remove();
-          
-          if (window.FlutterChannel) {
-            window.FlutterChannel.postMessage('transformationComplete');
-          }
-        })();
-      ''');
-      
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      print("Error in force display content: $e");
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Church Newsroom'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.home),
-            onPressed: () async {
-              final mainUrl = 'https://news-kr.churchofjesuschrist.org/%EB%B3%B4%EB%8F%84-%EC%9E%90%EB%A3%8C';
-              print('Returning to main page: $mainUrl');
-              
-              try {
-                await controller.loadRequest(Uri.parse(mainUrl));
-              } catch (e) {
-                print("Error navigating to home: $e");
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () async {
-              print('Refreshing current page');
-              
-              try {
-                await controller.reload();
-              } catch (e) {
-                print("Error refreshing: $e");
-              }
-            },
-          ),
-        ],
+    return PopScope(
+      canPop: !_canGoBack,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        
+        // Navigate to home page instead of going back
+        await _goToHomePage();
+      },
+      child: Scaffold(
+        body: _isControllerInitialized 
+          ? WebViewWidget(controller: controller)
+          : const Center(child: Text('초기화 중...')), // "Initializing..." in Korean
+          
+        // Change FAB to a home button
+        floatingActionButton: _canGoBack 
+          ? Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              child: FloatingActionButton(
+                onPressed: _goToHomePage,
+                backgroundColor: const Color(0xFFC2356E), // Match with the "Load More" button color
+                elevation: 4.0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15.0),
+                ),
+                child: const Icon(
+                  Icons.list,
+                  color: Colors.white,
+                ),
+              ),
+            )
+          : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       ),
-      body: _isControllerInitialized 
-        ? WebViewWidget(controller: controller)
-        : const Center(child: Text('초기화 중...')) // "Initializing..." in Korean
     );
   }
 
