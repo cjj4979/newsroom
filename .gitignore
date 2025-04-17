@@ -116,6 +116,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/key.properties
 
 # Exceptions to above rules.
 !**/ios/**/default.mode1v3

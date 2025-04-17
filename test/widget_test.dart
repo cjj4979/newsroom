@@ -6,7 +6,7 @@ import 'package:newsroom/main.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const channel = MethodChannel('com.example.newsroom/widget');
+  const channel = MethodChannel('com.kncc.newsroom/widget');
   final List<MethodCall> log = <MethodCall>[];
 
   setUp(() {

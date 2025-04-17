@@ -1,4 +1,4 @@
-package com.example.newsroom
+package com.kncc.newsroom
 
 /**
  * This file is a placeholder to hold utility functions for widget-related code.

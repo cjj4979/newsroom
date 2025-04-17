@@ -1,4 +1,4 @@
-package com.example.newsroom
+package com.kncc.newsroom
 
 import java.util.Date
 

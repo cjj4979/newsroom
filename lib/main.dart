@@ -51,7 +51,7 @@ class _NewsroomHomePageState extends State<NewsroomHomePage> {
   bool _isLoading = true;
   bool _isControllerInitialized = false;
   bool _isStyleApplied = false;
-  static const platform = MethodChannel('com.example.newsroom/widget');
+  static const platform = MethodChannel('com.kncc.newsroom/widget');
   DateTime? _lastFetchTime;
   bool _canGoBack = false;
   bool _isLoadMoreOperation = false;

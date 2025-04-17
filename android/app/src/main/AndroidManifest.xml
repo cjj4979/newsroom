@@ -30,7 +30,7 @@
             </intent-filter>
             <!-- Add intent filter for widget clicks -->
             <intent-filter>
-                <action android:name="com.example.newsroom.WIDGET_CLICK" />
+                <action android:name="com.kncc.newsroom.WIDGET_CLICK" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

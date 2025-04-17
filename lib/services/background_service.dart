@@ -5,7 +5,7 @@ import 'widget_update_service.dart';
 import 'storage_service.dart';
 
 class BackgroundService {
-  static const String periodicTaskName = 'com.example.newsroom.periodicFetch';
+  static const String periodicTaskName = 'com.kncc.newsroom.periodicFetch';
   
   static Future<void> initialize() async {
     print('BackgroundService: Initializing WorkManager');

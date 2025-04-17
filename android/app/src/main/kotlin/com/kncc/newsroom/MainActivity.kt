@@ -1,4 +1,4 @@
-package com.example.newsroom
+package com.kncc.newsroom
 
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
@@ -12,7 +12,7 @@ import org.json.JSONArray
 import java.io.File
 
 class MainActivity: FlutterActivity() {
-    private val CHANNEL = "com.example.newsroom/widget"
+    private val CHANNEL = "com.kncc.newsroom/widget"
     private val fileName = "news_articles.json"
     private var initialArticleUrl: String? = null
     private lateinit var methodChannel: MethodChannel
@@ -57,7 +57,7 @@ class MainActivity: FlutterActivity() {
         Log.d("MainActivity", "Handling intent with action: ${intent.action}")
         
         // Check if this is a widget click
-        if (intent.action == "com.example.newsroom.WIDGET_CLICK") {
+        if (intent.action == "com.kncc.newsroom.WIDGET_CLICK") {
             Log.d("MainActivity", "Handling widget click intent")
             // Get the article URL from the fill-in intent extras
             var newUrl = intent.getStringExtra("articleUrl")

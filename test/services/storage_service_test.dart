@@ -21,15 +21,15 @@ void main() {
         NewsArticle(
           title: 'Test Article 1',
           summary: 'Summary 1',
-          imageUrl: 'https://example.com/image1.jpg',
-          articleUrl: 'https://example.com/article1',
+          imageUrl: 'https://kncc.com/image1.jpg',
+          articleUrl: 'https://kncc.com/article1',
           publishedDate: DateTime(2024, 1, 1),
         ),
         NewsArticle(
           title: 'Test Article 2',
           summary: 'Summary 2',
-          imageUrl: 'https://example.com/image2.jpg',
-          articleUrl: 'https://example.com/article2',
+          imageUrl: 'https://kncc.com/image2.jpg',
+          articleUrl: 'https://kncc.com/article2',
           publishedDate: DateTime(2024, 1, 2),
         ),
       ];
@@ -59,8 +59,8 @@ void main() {
         NewsArticle(
           title: 'Test Article',
           summary: 'Summary',
-          imageUrl: 'https://example.com/image.jpg',
-          articleUrl: 'https://example.com/article',
+          imageUrl: 'https://kncc.com/image.jpg',
+          articleUrl: 'https://kncc.com/article',
           publishedDate: DateTime.now(),
         ),
       ]);
@@ -80,8 +80,8 @@ void main() {
         NewsArticle(
           title: 'Test Article',
           summary: 'Summary',
-          imageUrl: 'https://example.com/image.jpg',
-          articleUrl: 'https://example.com/article',
+          imageUrl: 'https://kncc.com/image.jpg',
+          articleUrl: 'https://kncc.com/article',
           publishedDate: DateTime.now(),
         ),
       ]);
@@ -99,8 +99,8 @@ void main() {
         NewsArticle(
           title: 'Test Article',
           summary: 'Summary',
-          imageUrl: 'https://example.com/image.jpg',
-          articleUrl: 'https://example.com/article',
+          imageUrl: 'https://kncc.com/image.jpg',
+          articleUrl: 'https://kncc.com/article',
           publishedDate: DateTime.now(),
         ),
       ]);
