@@ -1,4 +1,4 @@
-package com.example.newsroom
+package com.kncc.newsroom
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -20,8 +20,8 @@ class NewsWidget : AppWidgetProvider() {
         // Create an Intent to launch MainActivity when clicked
         val intent = Intent(context, MainActivity::class.java).apply {
             // Add specific action for widget clicks
-            action = "com.example.newsroom.WIDGET_CLICK"
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = "com.kncc.newsroom.WIDGET_CLICK"
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         Log.d("NewsWidget", "Created template intent with action: ${intent.action}")
         

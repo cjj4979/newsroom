@@ -1,4 +1,4 @@
-package com.example.newsroom
+package com.kncc.newsroom
 
 import android.content.Context
 import android.content.Intent
@@ -101,8 +101,8 @@ class NewsWidgetItemFactory(private val context: Context) : RemoteViewsFactory {
         // Create the fill-in intent
         val fillInIntent = Intent().apply {
             putExtra("articleUrl", item.articleUrl)
-            action = "com.example.newsroom.WIDGET_CLICK"
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            action = "com.kncc.newsroom.WIDGET_CLICK"
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         
         // Set the fill-in intent on both the container and individual views

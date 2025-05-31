@@ -8,15 +8,15 @@ void main() {
       final article = NewsArticle(
         title: 'Test Title',
         summary: 'Test Summary',
-        imageUrl: 'https://example.com/image.jpg',
-        articleUrl: 'https://example.com/article',
+        imageUrl: 'https://kncc.com/image.jpg',
+        articleUrl: 'https://kncc.com/article',
         publishedDate: date,
       );
 
       expect(article.title, 'Test Title');
       expect(article.summary, 'Test Summary');
-      expect(article.imageUrl, 'https://example.com/image.jpg');
-      expect(article.articleUrl, 'https://example.com/article');
+      expect(article.imageUrl, 'https://kncc.com/image.jpg');
+      expect(article.articleUrl, 'https://kncc.com/article');
       expect(article.publishedDate, date);
     });
 
@@ -25,8 +25,8 @@ void main() {
       final article = NewsArticle(
         title: 'Test Title',
         summary: 'Test Summary',
-        imageUrl: 'https://example.com/image.jpg',
-        articleUrl: 'https://example.com/article',
+        imageUrl: 'https://kncc.com/image.jpg',
+        articleUrl: 'https://kncc.com/article',
         publishedDate: date,
       );
 
@@ -48,8 +48,8 @@ void main() {
       final jsonData = {
         'title': 'Test Title',
         'summary': 'Test Summary',
-        'imageUrl': 'https://example.com/image.jpg',
-        'articleUrl': 'https://example.com/article',
+        'imageUrl': 'https://kncc.com/image.jpg',
+        'articleUrl': 'https://kncc.com/article',
         'publishedDate': '2024-01-01T12:00:00.000',
       };
 

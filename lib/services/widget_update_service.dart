@@ -5,7 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/news_article.dart';
 
 class WidgetUpdateService {
-  static const platform = MethodChannel('com.example.newsroom/widget');
+  static const platform = MethodChannel('com.kncc.newsroom/widget');
   static const int maxArticles = 10; // Maximum number of articles to store
   static const String fileName = "news_articles.json";
 
